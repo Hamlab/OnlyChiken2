@@ -13,11 +13,9 @@ to setup
   ask patches with [(random-float 100) < density]
     [ set pcolor green ]
   ;; make a column of burning trees
-  ask patches with [pxcor = 5 and pycor = 10]
+  ask patches with [pxcor = 0 and pycor = 0]
     [ ignite ]
   ;; set tree counts
-  set wind-x 1
-  set wind-y 0
   set initial-trees count patches with [pcolor = green]
   set burned-trees 0
   reset-ticks
@@ -69,11 +67,11 @@ end
 GRAPHICS-WINDOW
 200
 10
-710
-521
+709
+520
 -1
 -1
-2.0
+1.0
 1
 10
 1
@@ -83,10 +81,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--125
-125
--125
-125
+-250
+250
+-250
+250
 1
 1
 1
@@ -113,7 +111,7 @@ density
 density
 0.0
 99.0
-45.0
+49.0
 1.0
 1
 %
@@ -162,7 +160,7 @@ coeff-vent
 coeff-vent
 0
 1
-0.8
+1.0
 0.1
 1
 NIL
@@ -192,7 +190,7 @@ wind-y
 wind-y
 -1
 1
-1.0
+0.1
 0.1
 1
 NIL
