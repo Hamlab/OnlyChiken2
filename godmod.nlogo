@@ -7,8 +7,8 @@ globals [
   ;tresfaible -> orange
   allpixels
   allbrown
-
-
+  
+  
 ]
 breed [fires fire]    ;; bright red turtles -- the leading edge of the fire
 breed [embers ember]  ;; turtles gradually fading from red to near black
@@ -16,7 +16,7 @@ breed [embers ember]  ;; turtles gradually fading from red to near black
 
 to setup
   clear-all
-  setup-turtle
+  setup-all
   ask patches with [pxcor = 5 and pycor = 10]
     [ ignite ]
   ;; set tree counts
@@ -42,7 +42,7 @@ to go
             (list (-1 + windx)  windy)
             (list (-1 + windx) (1 + windy))
             (list (1 + windx) (1 + windy)))
-      [if (pcolor = green)
+      [if ((pcolor = green) or (pcolor = yellow) or (pcolor = blue ) or (pcolor = orange)) 
         [ ignite ]]
       set breed embers ]
   fade-embers
@@ -69,21 +69,23 @@ end
 
 ; Copyright 1997 Uri Wilensky.
 ; See Info tab for full copyright and license.
-to setup-turtle
+to setup-all
   set-default-shape turtles "square"
   ;; make some green trees
-  ask patches with [(random-float 100) < density ] [set pcolor brown ]   ; brown initialisation
-
-  ask patches with [pcolor = brown ]
+  ask patches with [(random-float 100) < density ] [set pcolor brown ]   ; Initialisation de la densité 
+  
+  ask patches with [pcolor = brown ]               ;;; Implémentation arbre fort                 
     [if  (random-float 100) < fort  [set pcolor yellow  ]]
-
-  ask patches with [(pcolor = brown) ]
-  [if (random-float 100) < ((moyen * (density / 100)) / (density - (fort * (density / 100))) ) * 100  [set pcolor green]]
-  let i (density - (fort * (density / 100)))
-  ask patches with [pcolor = brown ]
-  [if (random-float 100) <   ((faible * (density / 100 )) /(i - ((moyen * (density / 100)))))* 100  [set pcolor blue ]]
-
- ask patches with  [pcolor = brown ]
+  
+  let i (density - (fort * (density / 100)))   
+  
+  ask patches with [(pcolor = brown) ]           ;;; Implémentation arbre moyen 
+  [if (random-float 100) < ((moyen * (density / 100)) / i ) * 100  [set pcolor green]]
+  
+  ask patches with [pcolor = brown ]         ;; ;Emplémentation arbre faible 
+  [if (random-float 100) <   ((faible * (density / 100 )) /(i - ((moyen * (density / 100)))))* 100  [set pcolor blue ]] 
+  
+ ask patches with  [pcolor = brown ]     ;;; Emplémentation arbre tresfaible 
    [set pcolor orange ]
 end
 @#$#@#$#@
