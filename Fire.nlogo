@@ -1,53 +1,102 @@
 globals [
-  initial-trees   ;; how many trees (green patches) we started with
   burned-trees    ;; how many have burned so far
+  toto
+
+  allpixels
+  allbrown
+  Pfort ; probabilité des arbres fort
+  Pmoyen ; probabilité des arbres moyen
+  Pfaible ; probabilité des arbres faibles
 ]
 
 breed [fires fire]    ;; bright red turtles -- the leading edge of the fire
 breed [embers ember]  ;; turtles gradually fading from red to near black
+breed [ecureuils ecureuil]
+
+
 
 to setup
   clear-all
-  set-default-shape turtles "square"
-  ;; make some green trees
-  ask patches with [(random-float 100) < density]
-    [ set pcolor green ]
-  ;; make a column of burning trees
-  ask patches with [pxcor = 0 and pycor = 0]
+  setup-all
+  ;make_ecureuils ; <- mettre dans setup/all
+  ask patches with [pxcor < 2 and pxcor > -2 and pycor < 2 and pycor > -2]
     [ ignite ]
   ;; set tree counts
-  set initial-trees count patches with [pcolor = green]
   set burned-trees 0
+
+  ;COMPTE les arbres non brulés
+  set allpixels (count patches with [pcolor = yellow ]) +  (count patches with [ pcolor = blue ]) + (count patches with [pcolor = green ])
+
+
+
+ set Pfort 0.5
+  set Pmoyen 0.35
+  set Pfaible 0.20
+
+    set toto 100 - moyen ; pour la densite de fort
+
   reset-ticks
+
 end
 
 to go
-  let windx (wind-x * coeff-vent)
-  let windy (wind-y * coeff-vent)
   if not any? turtles  ;; either fires or embers
-    [ stop ]
+    [ setup ] ;SETUP POUR SIMULATION A LA CHAINE
   ask fires
     [ ask patches at-points (list
-      (list (1 + windx)  windy)
-      (list (1 + windx) (-1 + windy))
-        (list windx (-1 + windy))
-          (list windx (1 + windy))
-            (list (-1 + windx) (-1 + windy))
-            (list (-1 + windx)  windy)
-            (list (-1 + windx) (1 + windy))
-            (list (1 + windx) (1 + windy)))
-      [if (pcolor = green)
-        [ ignite ]]
-      set breed embers ]
+      (list (1 + wind-x)  wind-y)
+      (list (1 + wind-x) (-1 + wind-y))
+      (list wind-x (-1 + wind-y))
+      (list wind-x (1 + wind-y))
+      (list (-1 + wind-x) (-1 + wind-y))
+      (list (-1 + wind-x)  wind-y)
+      (list (-1 + wind-x) (1 + wind-y))
+      (list (1 + wind-x) (1 + wind-y)))
+
+    ; probabilité de chacun des abres de s'emflamer (probabilité de chaques types sont initialisés au début)
+[ifelse (pcolor = yellow ) [if (random-float 1) < proba neighborsOnFire Pfort [ignite]]
+      [ifelse (pcolor = green ) [if (random-float 1) < proba neighborsOnFire Pmoyen [ignite ]]
+        [if (pcolor = blue ) [if (random-float 1) < proba neighborsOnFire Pfaible [ignite ]]]]]
+
+set breed embers ]
   fade-embers
+  ask ecureuils [
+    if (xcor <= min-pxcor ) [DIE]
+    move
+    see
+  ]
+  update-plots
   tick
 end
+
+to make_ecureuils
+  create-ecureuils 10[
+    set size 5
+    setxy random-xcor random-ycor
+    set color red
+  ]
+end
+
+to move
+  fd 1
+end
+
+to see
+  ask ecureuils[
+    ;;ask patches in-cone 20 45 [set pcolor red] ; DEBUG
+    let interieur ecureuils in-cone 20 45
+    let feu fires in-cone 20 45
+    if any? interieur [set heading [heading] of one-of interieur]
+    if any? feu [set heading heading + 180]
+  ]
+end
+
 
 ;; creates the fire turtles
 to ignite  ;; patch procedure
   sprout-fires 1
     [ set color red ]
-  set pcolor black
+  set pcolor red
   set burned-trees burned-trees + 1
 end
 
@@ -57,21 +106,58 @@ to fade-embers
     [ set color color - 0.3  ;; make red darker
       if color < red - 3.5     ;; are we almost at black?
         [ set pcolor color
+          set pcolor black
           die ] ]
 end
 
-
 ; Copyright 1997 Uri Wilensky.
 ; See Info tab for full copyright and license.
+to setup-all
+  ;;;;;;;;;
+  set-default-shape turtles "square"
+  ;; make some green trees
+
+
+  ;;;;;;;;;Les patches brown représente tous les arbres(densité), ils seront ensuite remplacé par chaque type d'arbres
+  ask patches with [(random-float 100) < density ] [set pcolor brown ]
+
+;;Je commence par remplacé un % des abres fort  des patches marron (ex: 20 % (arbres fort)  des 87 % de la densité)
+  ask patches with [pcolor = brown ]               ;;; Implémentation arbre fort
+    [if  (random-float 100) < fort  [set pcolor yellow  ]]
+
+;; i représente le % d'arbres marron qui reste en soustrayant les 20 % d'arbres fort des 87 % des patches marrons initiaux
+  let i (density - (fort * (density / 100)))
+
+;Implémentation des arbres moyen (patches green)
+  ask patches with [(pcolor = brown) ]
+  [if (random-float 100) < ((moyen * (density / 100)) / i ) * 100  [set pcolor green]]
+
+;Implémentation des arbres faible(patches blue)
+  ask patches with [pcolor = brown ]   ; vive les moutons
+  [set pcolor blue ]
+
+end
+
+
+to-report proba [n  p]
+if (n = 1 or n = 0) [report p]
+set n n - 1
+report ( p + proba n  p ) - ( p * proba n p )
+set n 1
+end
+
+to-report neighborsOnFire
+  report count neighbors with [pcolor = red]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-200
+306
 10
-709
-520
+816
+521
 -1
 -1
-1.0
+2.0
 1
 10
 1
@@ -81,47 +167,36 @@ GRAPHICS-WINDOW
 0
 0
 1
--250
-250
--250
-250
+-125
+125
+-125
+125
 1
 1
 1
 ticks
 30.0
 
-MONITOR
-43
-131
-158
-176
-percent burned
-(burned-trees / initial-trees)\n* 100
-1
-1
-11
-
 SLIDER
-5
-38
-190
-71
+22
+10
+194
+43
 density
 density
-0.0
-99.0
-49.0
-1.0
+0
+99
+63.0
+1
 1
 %
 HORIZONTAL
 
 BUTTON
-106
-79
-175
-115
+140
+97
+203
+130
 go
 go
 T
@@ -132,13 +207,13 @@ NIL
 NIL
 NIL
 NIL
-0
+1
 
 BUTTON
-26
-79
-96
-115
+32
+93
+98
+126
 setup
 setup
 NIL
@@ -152,139 +227,244 @@ NIL
 1
 
 SLIDER
-12
-190
-184
-223
-coeff-vent
-coeff-vent
 0
+131
+172
+164
+wind-x
+wind-x
+-1
 1
-1.0
-0.1
+0.0
+1
 1
 NIL
 HORIZONTAL
 
 SLIDER
+0
+165
+172
+198
+wind-y
+wind-y
+-1
+1
+0.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+3
+268
+175
+301
+fort
+fort
+0
+toto
+46.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+2
+305
+174
+338
+moyen
+moyen
+0
+100
+54.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+3
+341
+175
+374
+faible
+faible
+0
+100
+0.0
+1
+1
+%
+HORIZONTAL
+
+MONITOR
+180
+154
+291
+199
+Nbr_fort
+Count patches with [pcolor = yellow ]
+17
+1
 11
-233
-183
-266
-wind-x
-wind-x
--1
+
+MONITOR
+179
+202
+291
+247
+Nbr_moyen
+count patches with [pcolor = green]
+17
 1
-1.0
-0.1
+11
+
+MONITOR
+179
+249
+291
+294
+Nbr_faible
+count patches with [pcolor = blue ]
+17
+1
+11
+
+MONITOR
+179
+295
+292
+340
+Nbr_tresfaible
+count patches with [pcolor = orange]
+17
+1
+11
+
+MONITOR
+20
+47
+210
+92
+Nombre de pixel en couleurs
+63000 * (density / 100)
+17
+1
+11
+
+MONITOR
+179
+341
+289
+386
+Pixels_couleurs
+allpixels
+17
+1
+11
+
+PLOT
+1
+413
+301
+590
+All Patches
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Vide" 1.0 0 -13628663 true "" "plot count patches with [pcolor = black ]"
+"Arbres fort " 1.0 0 -1184463 true "" "plot count patches with [pcolor = yellow ]"
+"Arbres moyen" 1.0 0 -10899396 true "" "plot count patches with [pcolor = green]"
+"Arbres faible" 1.0 0 -13345367 true "" "plot count patches with [pcolor = blue]"
+
+SLIDER
+303
+485
+475
+518
+Animal
+Animal
+0
+10
+9.0
+1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-12
-277
-184
-310
-wind-y
-wind-y
--1
+0
+205
+172
+238
+humidité
+humidité
+0
+100
+0.0
+10
 1
-0.1
-0.1
-1
-NIL
+%
 HORIZONTAL
+
+MONITOR
+227
+33
+284
+78
+NIL
+ticks
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
 
-This project simulates the spread of a fire through a forest.  It shows that the fire's chance of reaching the right edge of the forest depends critically on the density of trees. This is an example of a common feature of complex systems, the presence of a non-linear threshold or critical parameter.
+(a general understanding of what the model is trying to show or explain)
 
 ## HOW IT WORKS
 
-The fire starts on the left edge of the forest, and spreads to neighboring trees. The fire spreads in four directions: north, east, south, and west.
-
-The model assumes there is no wind.  So, the fire must have trees along its path in order to advance.  That is, the fire cannot skip over an unwooded area (patch), so such a patch blocks the fire's motion in that direction.
+(what rules the agents use to create the overall behavior of the model)
 
 ## HOW TO USE IT
 
-Click the SETUP button to set up the trees (green) and fire (red on the left-hand side).
-
-Click the GO button to start the simulation.
-
-The DENSITY slider controls the density of trees in the forest. (Note: Changes in the DENSITY slider do not take effect until the next SETUP.)
+(how to use the model, including a description of each of the items in the Interface tab)
 
 ## THINGS TO NOTICE
 
-When you run the model, how much of the forest burns. If you run it again with the same settings, do the same trees burn? How similar is the burn from run to run?
-
-Each turtle that represents a piece of the fire is born and then dies without ever moving. If the fire is made of turtles but no turtles are moving, what does it mean to say that the fire moves? This is an example of different levels in a system: at the level of the individual turtles, there is no motion, but at the level of the turtles collectively over time, the fire moves.
+(suggested things for the user to notice while running the model)
 
 ## THINGS TO TRY
 
-Set the density of trees to 55%. At this setting, there is virtually no chance that the fire will reach the right edge of the forest. Set the density of trees to 70%. At this setting, it is almost certain that the fire will reach the right edge. There is a sharp transition around 59% density. At 59% density, the fire has a 50/50 chance of reaching the right edge.
-
-Try setting up and running a BehaviorSpace experiment (see Tools menu) to analyze the percent burned at different tree density levels. Plot the burn-percentage against the density. What kind of curve do you get?
-
-Try changing the size of the lattice (`max-pxcor` and `max-pycor` in the Model Settings). Does it change the burn behavior of the fire?
+(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
 
 ## EXTENDING THE MODEL
 
-What if the fire could spread in eight directions (including diagonals)? To do that, use `neighbors` instead of `neighbors4`. How would that change the fire's chances of reaching the right edge? In this model, what "critical density" of trees is needed for the fire to propagate?
-
-Add wind to the model so that the fire can "jump" greater distances in certain directions.
-
-Add the ability to plant trees where you want them. What configurations of trees allow the fire to cross the forest? Which don't? Why is over 59% density likely to result in a tree configuration that works? Why does the likelihood of such a configuration increase so rapidly at the 59% density?
+(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
 
 ## NETLOGO FEATURES
 
-Unburned trees are represented by green patches; burning trees are represented by turtles.  Two breeds of turtles are used, "fires" and "embers".  When a tree catches fire, a new fire turtle is created; a fire turns into an ember on the next turn.  Notice how the program gradually darkens the color of embers to achieve the visual effect of burning out.
-
-The `neighbors4` primitive is used to spread the fire.
-
-You could also write the model without turtles by just having the patches spread the fire, and doing it that way makes the code a little simpler.   Written that way, the model would run much slower, since all of the patches would always be active.  By using turtles, it's much easier to restrict the model's activity to just the area around the leading edge of the fire.
-
-See the "CA 1D Rule 30" and "CA 1D Rule 30 Turtle" for an example of a model written both with and without turtles.
+(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
 
 ## RELATED MODELS
 
-* Percolation
-* Rumor Mill
+(models in the NetLogo Models Library and elsewhere which are of related interest)
 
 ## CREDITS AND REFERENCES
 
-https://en.wikipedia.org/wiki/Forest-fire_model
-
-## HOW TO CITE
-
-If you mention this model or the NetLogo software in a publication, we ask that you include the citations below.
-
-For the model itself:
-
-* Wilensky, U. (1997).  NetLogo Fire model.  http://ccl.northwestern.edu/netlogo/models/Fire.  Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
-
-Please cite the NetLogo software as:
-
-* Wilensky, U. (1999). NetLogo. http://ccl.northwestern.edu/netlogo/. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
-
-## COPYRIGHT AND LICENSE
-
-Copyright 1997 Uri Wilensky.
-
-![CC BY-NC-SA 3.0](http://ccl.northwestern.edu/images/creativecommons/byncsa.png)
-
-This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 License.  To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-sa/3.0/ or send a letter to Creative Commons, 559 Nathan Abbott Way, Stanford, California 94305, USA.
-
-Commercial licenses are also available. To inquire about commercial licenses, please contact Uri Wilensky at uri@northwestern.edu.
-
-This model was created as part of the project: CONNECTED MATHEMATICS: MAKING SENSE OF COMPLEX PHENOMENA THROUGH BUILDING OBJECT-BASED PARALLEL MODELS (OBPML).  The project gratefully acknowledges the support of the National Science Foundation (Applications of Advanced Technologies Program) -- grant numbers RED #9552950 and REC #9632612.
-
-This model was developed at the MIT Media Lab using CM StarLogo.  See Resnick, M. (1994) "Turtles, Termites and Traffic Jams: Explorations in Massively Parallel Microworlds."  Cambridge, MA: MIT Press.  Adapted to StarLogoT, 1997, as part of the Connected Mathematics Project.
-
-This model was converted to NetLogo as part of the projects: PARTICIPATORY SIMULATIONS: NETWORK-BASED DESIGN FOR SYSTEMS LEARNING IN CLASSROOMS and/or INTEGRATED SIMULATION AND MODELING ENVIRONMENT. The project gratefully acknowledges the support of the National Science Foundation (REPP & ROLE programs) -- grant numbers REC #9814682 and REC-0126227. Converted from StarLogoT to NetLogo, 2001.
-
-<!-- 1997 2001 MIT -->
+(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
 @#$#@#$#@
 default
 true
@@ -478,6 +658,22 @@ Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
 
+sheep
+false
+15
+Circle -1 true true 203 65 88
+Circle -1 true true 70 65 162
+Circle -1 true true 150 105 120
+Polygon -7500403 true false 218 120 240 165 255 165 278 120
+Circle -7500403 true false 214 72 67
+Rectangle -1 true true 164 223 179 298
+Polygon -1 true true 45 285 30 285 30 240 15 195 45 210
+Circle -1 true true 3 83 150
+Rectangle -1 true true 65 221 80 296
+Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
+Polygon -7500403 true false 276 85 285 105 302 99 294 83
+Polygon -7500403 true false 219 85 210 105 193 99 201 83
+
 square
 false
 0
@@ -562,6 +758,13 @@ Line -7500403 true 40 84 269 221
 Line -7500403 true 40 216 269 79
 Line -7500403 true 84 40 221 269
 
+wolf
+false
+0
+Polygon -16777216 true false 253 133 245 131 245 133
+Polygon -7500403 true true 2 194 13 197 30 191 38 193 38 205 20 226 20 257 27 265 38 266 40 260 31 253 31 230 60 206 68 198 75 209 66 228 65 243 82 261 84 268 100 267 103 261 77 239 79 231 100 207 98 196 119 201 143 202 160 195 166 210 172 213 173 238 167 251 160 248 154 265 169 264 178 247 186 240 198 260 200 271 217 271 219 262 207 258 195 230 192 198 210 184 227 164 242 144 259 145 284 151 277 141 293 140 299 134 297 127 273 119 270 105
+Polygon -7500403 true true -1 195 14 180 36 166 40 153 53 140 82 131 134 133 159 126 188 115 227 108 236 102 238 98 268 86 269 92 281 87 269 103 269 113
+
 x
 false
 0
@@ -570,9 +773,6 @@ Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
 NetLogo 6.0
 @#$#@#$#@
-set density 60.0
-setup
-repeat 180 [ go ]
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
